@@ -427,3 +427,42 @@ debug.log
 
 # cProfile
 *.prof
+
+# Python
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.env
+db.sqlite3
+*.sqlite3
+
+# Django
+*.log
+logs/
+media/
+staticfiles/
+static/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Render
+*.pid
+*.lock
+
+# Project specific
+data/
+models/
+*.pkl
+*.pb
