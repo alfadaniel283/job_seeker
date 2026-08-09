@@ -3,9 +3,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Avg
+from django.db import models, IntegrityError
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from django.db import models
 from jobs.models import Job, JobSource, JobEvaluation, UserJobPreferences
 from jobs.forms import JobSourceForm, JobPreferencesForm, JobSearchForm, BulkJobSourceForm
 from jobs.services.job_processor import JobProcessor
@@ -13,6 +13,7 @@ from jobs.services.job_evaluator import JobEvaluator
 from jobs.services.ai_service import AIService
 import json
 import logging
+import traceback
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -358,133 +359,201 @@ def health_check(request):
     })
 
 
+BULK_BATCH_SIZE = 5  # URLs processed per request. Tune based on avg time per URL.
+BULK_SESSION_KEY = 'bulk_add_jobs_state'
+
+
+def _process_url_batch(processor, urls_batch, existing_urls, source_type, batch_name, user):
+    """Process a single batch of URLs. Returns a dict of results for this batch only."""
+    batch_result = {
+        'jobs_added': 0,
+        'created_count': 0,
+        'skipped': [],
+        'failed': [],
+        'errors': [],
+    }
+
+    for url in urls_batch:
+        try:
+            if url in existing_urls:
+                print(f" Skipping duplicate URL: {url[:50]}... (already exists)")
+                batch_result['skipped'].append(url)
+                continue
+
+            print(f" Processing URL: {url[:50]}...")
+
+            source = JobSource.objects.create(
+                url=url,
+                source_type=source_type,
+                name=f"{batch_name} - {url[:50]}",
+                is_active=True
+            )
+            batch_result['created_count'] += 1
+
+            try:
+                jobs = processor.process_source(source.id, user)
+                batch_result['jobs_added'] += len(jobs)
+                print(f" Added {len(jobs)} jobs from {url[:50]}")
+            except Exception as e:
+                error_msg = f"Error processing {url[:50]}: {str(e)}"
+                logger.error(error_msg)
+                logger.error(traceback.format_exc())
+                batch_result['errors'].append(error_msg)
+                batch_result['failed'].append(url)
+
+        except IntegrityError:
+            print(f" Skipping duplicate URL {url[:50]}... (integrity error)")
+            batch_result['skipped'].append(url)
+        except Exception as e:
+            error_msg = f"Error creating source for {url[:50]}: {str(e)}"
+            logger.error(error_msg)
+            logger.error(traceback.format_exc())
+            batch_result['errors'].append(error_msg)
+            batch_result['failed'].append(url)
+
+    return batch_result
+
+
 @login_required
 def bulk_add_jobs(request):
-    """Add multiple job sources at once"""
+    """Add multiple job sources at once, processed in small batches across
+    multiple quick requests instead of one long-running request (which was
+    exceeding the Gunicorn worker timeout and taking down the whole app)."""
+
+    # Continuing an in-progress batch job
+    if request.method == 'POST' and request.POST.get('continue_batch'):
+        state = request.session.get(BULK_SESSION_KEY)
+        if not state:
+            messages.error(request, 'Batch session expired or not found. Please start again.')
+            return redirect('jobs:bulk_add_jobs')
+
+        pending_urls = state['pending_urls']
+        batch = pending_urls[:BULK_BATCH_SIZE]
+        remaining = pending_urls[BULK_BATCH_SIZE:]
+
+        processor = JobProcessor(use_ai=True)
+        existing_urls = set(JobSource.objects.filter(url__in=batch).values_list('url', flat=True))
+        result = _process_url_batch(processor, batch, existing_urls, state['source_type'], state['batch_name'], request.user)
+
+        state['total_jobs'] += result['jobs_added']
+        state['created_count'] += result['created_count']
+        state['skipped_urls'].extend(result['skipped'])
+        state['failed_urls'].extend(result['failed'])
+        state['errors'].extend(result['errors'])
+        state['pending_urls'] = remaining
+        state['processed_count'] += len(batch)
+        request.session[BULK_SESSION_KEY] = state
+        request.session.modified = True
+
+        if remaining:
+            # More to do — render a page that auto-continues
+            return render(request, 'jobs/bulk_add_progress.html', {
+                'processed': state['processed_count'],
+                'total': state['total_count'],
+            })
+
+        # Done — show summary and clean up
+        _finish_bulk_batch(request, state)
+        del request.session[BULK_SESSION_KEY]
+        return redirect('jobs:job_list')
+
+    # Fresh submission
     if request.method == 'POST':
         form = BulkJobSourceForm(request.POST)
         if form.is_valid():
             urls = form.cleaned_data['urls'].strip().split('\n')
             source_type = form.cleaned_data['source_type']
             batch_name = form.cleaned_data.get('batch_name', f'Batch_{datetime.now().strftime("%Y%m%d_%H%M%S")}')
-            
-            # Filter out empty lines
             urls = [url.strip() for url in urls if url.strip()]
-            
+
             if not urls:
                 messages.warning(request, 'No valid URLs provided')
                 return redirect('jobs:bulk_add_jobs')
-            
-            logger.info(f"Processing {len(urls)} URLs with Groq AI")
-            print(f" Processing {len(urls)} URLs with Groq AI...")
-            
+
+            logger.info(f"Processing {len(urls)} URLs with Groq AI (batched, {BULK_BATCH_SIZE}/request)")
+
+            state = {
+                'pending_urls': urls,
+                'source_type': source_type,
+                'batch_name': batch_name,
+                'total_jobs': 0,
+                'created_count': 0,
+                'skipped_urls': [],
+                'failed_urls': [],
+                'errors': [],
+                'processed_count': 0,
+                'total_count': len(urls),
+            }
+
+            # Process the first batch immediately so small lists finish in one request
+            batch = state['pending_urls'][:BULK_BATCH_SIZE]
+            remaining = state['pending_urls'][BULK_BATCH_SIZE:]
             processor = JobProcessor(use_ai=True)
-            total_jobs = 0
-            created_sources = []
-            failed_urls = []
-            skipped_urls = []  # Track skipped duplicates
-            errors = []
-            
-            # First, check which URLs already exist
-            existing_urls = set(JobSource.objects.filter(
-                url__in=urls
-            ).values_list('url', flat=True))
-            
-            for i, url in enumerate(urls, 1):
-                try:
-                    # Skip if URL already exists
-                    if url in existing_urls:
-                        print(f" Skipping duplicate URL {i}/{len(urls)}: {url[:50]}... (already exists)")
-                        skipped_urls.append(url)
-                        continue
-                    
-                    print(f" Processing URL {i}/{len(urls)}: {url[:50]}...")
-                    
-                    # Create job source
-                    source = JobSource.objects.create(
-                        url=url,
-                        source_type=source_type,
-                        name=f"{batch_name} - {url[:50]}",
-                        is_active=True
-                    )
-                    created_sources.append(source)
-                    
-                    # Process jobs
-                    try:
-                        jobs = processor.process_source(source.id, request.user)
-                        total_jobs += len(jobs)
-                        print(f" Added {len(jobs)} jobs from {url[:50]}")
-                    except Exception as e:
-                        error_msg = f"Error processing {url[:50]}: {str(e)}"
-                        logger.error(error_msg)
-                        logger.error(traceback.format_exc())
-                        errors.append(error_msg)
-                        failed_urls.append(url)
-                    
-                except IntegrityError:
-                    # This shouldn't happen now that we check above, but just in case
-                    print(f" Skipping duplicate URL {url[:50]}... (integrity error)")
-                    skipped_urls.append(url)
-                except Exception as e:
-                    error_msg = f"Error creating source for {url[:50]}: {str(e)}"
-                    logger.error(error_msg)
-                    logger.error(traceback.format_exc())
-                    errors.append(error_msg)
-                    failed_urls.append(url)
-            
-            # Summary
-            print("\n" + "="*50)
-            print(" BULK PROCESSING SUMMARY")
-            print("="*50)
-            print(f"Total URLs: {len(urls)}")
-            print(f"New Sources Created: {len(created_sources)}")
-            print(f"Jobs Added: {total_jobs}")
-            print(f"Skipped (duplicates): {len(skipped_urls)}")
-            print(f"Failed URLs: {len(failed_urls)}")
-            
-            if skipped_urls:
-                print("\n SKIPPED (already exist):")
-                for url in skipped_urls[:5]:
-                    print(f"  - {url[:60]}...")
-                if len(skipped_urls) > 5:
-                    print(f"  ... and {len(skipped_urls) - 5} more")
-            
-            if errors:
-                print("\n ERRORS:")
-                for error in errors[:5]:
-                    print(f"  - {error}")
-                if len(errors) > 5:
-                    print(f"  ... and {len(errors) - 5} more errors")
-            
-            # Show message to user
-            if total_jobs > 0:
-                messages.success(
-                    request, 
-                    f' Added {total_jobs} jobs from {len(created_sources)} new sources! '
-                    f'Skipped {len(skipped_urls)} duplicates.'
-                )
-            elif len(skipped_urls) > 0 and total_jobs == 0:
-                messages.info(
-                    request,
-                    f'All {len(skipped_urls)} URLs already exist. No new jobs added.'
-                )
-            else:
-                messages.warning(
-                    request, 
-                    f' No new jobs found. Failed: {len(failed_urls)} URLs. Check logs for details.'
-                )
-            
-            if failed_urls:
-                messages.warning(
-                    request, 
-                    f'Failed to process {len(failed_urls)} URLs. Check logs for details.'
-                )
-            
+            existing_urls = set(JobSource.objects.filter(url__in=batch).values_list('url', flat=True))
+            result = _process_url_batch(processor, batch, existing_urls, source_type, batch_name, request.user)
+
+            state['total_jobs'] += result['jobs_added']
+            state['created_count'] += result['created_count']
+            state['skipped_urls'].extend(result['skipped'])
+            state['failed_urls'].extend(result['failed'])
+            state['errors'].extend(result['errors'])
+            state['pending_urls'] = remaining
+            state['processed_count'] += len(batch)
+
+            if remaining:
+                request.session[BULK_SESSION_KEY] = state
+                request.session.modified = True
+                return render(request, 'jobs/bulk_add_progress.html', {
+                    'processed': state['processed_count'],
+                    'total': state['total_count'],
+                })
+
+            _finish_bulk_batch(request, state)
             return redirect('jobs:job_list')
     else:
         form = BulkJobSourceForm()
-    
+
     return render(request, 'jobs/bulk_add_jobs.html', {'form': form})
+
+
+def _finish_bulk_batch(request, state):
+    """Show the final summary messages once all batches are processed."""
+    total_jobs = state['total_jobs']
+    created_count = state['created_count']
+    skipped_urls = state['skipped_urls']
+    failed_urls = state['failed_urls']
+
+    print("\n" + "=" * 50)
+    print(" BULK PROCESSING SUMMARY")
+    print("=" * 50)
+    print(f"Total URLs: {state['total_count']}")
+    print(f"New Sources Created: {created_count}")
+    print(f"Jobs Added: {total_jobs}")
+    print(f"Skipped (duplicates): {len(skipped_urls)}")
+    print(f"Failed URLs: {len(failed_urls)}")
+
+    if total_jobs > 0:
+        messages.success(
+            request,
+            f' Added {total_jobs} jobs from {created_count} new sources! '
+            f'Skipped {len(skipped_urls)} duplicates.'
+        )
+    elif len(skipped_urls) > 0 and total_jobs == 0:
+        messages.info(
+            request,
+            f'All {len(skipped_urls)} URLs already exist. No new jobs added.'
+        )
+    else:
+        messages.warning(
+            request,
+            f' No new jobs found. Failed: {len(failed_urls)} URLs. Check logs for details.'
+        )
+
+    if failed_urls:
+        messages.warning(
+            request,
+            f'Failed to process {len(failed_urls)} URLs. Check logs for details.'
+        )
 
 @login_required
 @require_POST

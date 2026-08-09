@@ -84,80 +84,117 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
+function chunkArray(arr, size) {
+    const chunks = [];
+    for (let i = 0; i < arr.length; i += size) {
+        chunks.push(arr.slice(i, i + size));
+    }
+    return chunks;
+}
+
 $(document).ready(function() {
+    const BATCH_SIZE = 5; // URLs sent per request. Keep small so no single
+                           // request risks hitting the server timeout.
+
     // Count URLs
     $('#id_urls').on('input', function() {
         const urls = $(this).val().split('\n').filter(url => url.trim());
         $('#url-count').text(urls.length);
     });
 
-    // Form submission with progress
+    // Form submission with batched progress
     $('#bulk-form').on('submit', function(e) {
         e.preventDefault();
-        
-        const formData = $(this).serialize();
-        const urls = $('#id_urls').val().split('\n').filter(url => url.trim());
+
+        const urls = $('#id_urls').val().split('\n').map(u => u.trim()).filter(Boolean);
         const totalUrls = urls.length;
-        
+
         if (totalUrls === 0) {
             alert('Please enter at least one URL');
             return;
         }
-        
-        // Update UI
+
+        const batches = chunkArray(urls, BATCH_SIZE);
+        const sourceType = $('#id_source_type').val();
+
         $('#submit-btn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Processing...');
         $('#processing-status').text('Processing URLs...');
-        
+        $('#url-count').text(totalUrls);
+
         let processed = 0;
         let totalJobs = 0;
-        
-        // Process URLs one by one
-        urls.forEach(function(url, index) {
+        let failedCount = 0;
+
+        function processBatchAt(batchIndex) {
+            if (batchIndex >= batches.length) {
+                // All batches done
+                $('#submit-btn').prop('disabled', false).html('<i class="fas fa-check"></i> Complete!');
+                $('#processing-status').text(
+                    `✅ Complete! Added ${totalJobs} jobs from ${totalUrls} sources` +
+                    (failedCount ? ` (${failedCount} failed)` : '')
+                );
+                $('#progress-bar').css('width', '100%').text('100%');
+
+                setTimeout(function() {
+                    window.location.href = '{% url "jobs:job_list" %}';
+                }, 3000);
+                return;
+            }
+
+            const batch = batches[batchIndex];
+
             $.ajax({
                 url: '{% url "jobs:process_urls_api" %}',
                 method: 'POST',
+                traditional: true, // serialize urls as urls=a&urls=b, matching request.POST.getlist('urls')
                 data: {
-                    urls: [url],
-                    source_type: $('#id_source_type').val(),
+                    urls: batch,
+                    source_type: sourceType,
                     csrfmiddlewaretoken: '{{ csrf_token }}'
                 },
                 success: function(data) {
-                    processed++;
-                    totalJobs += data.total_jobs;
-                    
-                    // Update progress
-                    const progress = (processed / totalUrls) * 100;
-                    $('#progress-bar').css('width', progress + '%');
-                    $('#progress-bar').text(progress.toFixed(0) + '%');
-                    $('#processing-status').text(`Processed ${processed} of ${totalUrls} URLs - ${totalJobs} jobs found`);
-                    
-                    if (processed === totalUrls) {
-                        // Complete
-                        $('#submit-btn').prop('disabled', false).html('<i class="fas fa-check"></i> Complete!');
-                        $('#processing-status').text(`✅ Complete! Added ${totalJobs} jobs from ${totalUrls} sources`);
-                        $('#progress-bar').css('width', '100%');
-                        $('#progress-bar').text('100%');
-                        
-                        setTimeout(function() {
-                            window.location.href = '{% url "jobs:job_list" %}';
-                        }, 3000);
+                    processed += batch.length;
+                    totalJobs += data.total_jobs || 0;
+                    if (data.results) {
+                        failedCount += data.results.filter(r => r.status === 'error').length;
                     }
+
+                    const progress = Math.round((processed / totalUrls) * 100);
+                    $('#progress-bar').css('width', progress + '%').text(progress + '%');
+                    $('#processing-status').text(
+                        `Processed ${processed} of ${totalUrls} URLs - ${totalJobs} jobs found` +
+                        (failedCount ? `, ${failedCount} failed` : '')
+                    );
+
+                    // Only fire the next batch after this one finishes
+                    processBatchAt(batchIndex + 1);
                 },
                 error: function(xhr) {
-                    processed++;
-                    const progress = (processed / totalUrls) * 100;
-                    $('#progress-bar').css('width', progress + '%');
-                    $('#progress-bar').text(progress.toFixed(0) + '%');
-                    $('#processing-status').text(`⚠️ Error processing URL ${index + 1}`);
+                    processed += batch.length;
+                    failedCount += batch.length;
+
+                    const progress = Math.round((processed / totalUrls) * 100);
+                    $('#progress-bar').css('width', progress + '%').text(progress + '%');
+                    $('#processing-status').text(`⚠️ Batch ${batchIndex + 1} failed, continuing...`);
+
+                    // Keep going even if one batch fails, so one bad batch
+                    // doesn't stall the whole run
+                    processBatchAt(batchIndex + 1);
                 }
             });
-        });
+        }
+
+        processBatchAt(0);
     });
 });
 </script>
+{% endblock %}
 
+{% block extra_css %}
 <style>
     #id_urls {
         font-family: 'Courier New', monospace;

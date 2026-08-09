@@ -1,0 +1,25 @@
+{% extends "jobs/base.html" %}
+{% block content %}
+<div class="container mt-5">
+  <h3>Processing job sources…</h3>
+  <p>{{ processed }} of {{ total }} URLs processed.</p>
+  <div class="progress">
+    <div class="progress-bar" role="progressbar"
+         style="width: {% widthratio processed total 100 %}%;">
+    </div>
+  </div>
+  <p class="text-muted mt-2">This page will continue automatically — please don't close it.</p>
+</div>
+
+<form id="continue-form" method="post" action="{% url 'jobs:bulk_add_jobs' %}" style="display:none;">
+  {% csrf_token %}
+  <input type="hidden" name="continue_batch" value="1">
+</form>
+<script>
+  // Small delay so the browser actually renders the progress update
+  // before firing the next batch request.
+  setTimeout(function () {
+    document.getElementById('continue-form').submit();
+  }, 300);
+</script>
+{% endblock %}
