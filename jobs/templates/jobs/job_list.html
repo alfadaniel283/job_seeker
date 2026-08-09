@@ -40,11 +40,16 @@
     </div>
 
     <div class="col-md-9">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
             <h4>Jobs ({{ page_obj.paginator.count }})</h4>
-            <button class="btn btn-success" onclick="evaluateAllJobs()">
-                <i class="fas fa-robot"></i> Evaluate with AI
-            </button>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="evaluateAllJobs()">
+                    <i class="fas fa-robot"></i> Evaluate with AI
+                </button>
+                <button class="btn btn-primary" onclick="bulkExtractWithAI()">
+                    <i class="fas fa-brain"></i> Extract All
+                </button>
+            </div>
         </div>
 
         {% for job in page_obj %}
@@ -55,7 +60,7 @@
                         <h5 class="card-title">{{ job.title }}</h5>
                         <h6 class="card-subtitle text-muted">{{ job.company }}</h6>
                         <p class="card-text">
-                            <i class="fas fa-map-marker-alt"></i> {{ job.location }}
+                            <i class="fas fa-map-marker-alt"></i> {{ job.location|default:"Remote" }}
                             {% if job.is_remote %}
                             <span class="badge bg-success">Remote</span>
                             {% endif %}
@@ -63,7 +68,28 @@
                             <span class="badge bg-info">Hybrid</span>
                             {% endif %}
                         </p>
-                        <p class="card-text">
+                        
+                        <!-- Structured Data Badges -->
+                        <div class="mt-2">
+                            {% if job.has_structured_data %}
+                            <span class="badge bg-primary" title="AI-extracted data available">
+                                <i class="fas fa-robot"></i> AI Enriched
+                            </span>
+                            {% if job.requirements %}
+                            <span class="badge bg-secondary">{{ job.get_requirements_count }} requirements</span>
+                            {% endif %}
+                            {% if job.responsibilities %}
+                            <span class="badge bg-secondary">{{ job.get_responsibilities_count }} responsibilities</span>
+                            {% endif %}
+                            {% if job.skills %}
+                            <span class="badge bg-info">{{ job.get_skills_count }} skills</span>
+                            {% endif %}
+                            {% else %}
+                            <span class="badge bg-warning text-dark">Pending AI extraction</span>
+                            {% endif %}
+                        </div>
+                        
+                        <p class="card-text mt-2">
                             <small class="text-muted">
                                 <i class="fas fa-clock"></i> Posted: {{ job.posted_date|date:"M d, Y" }}
                             </small>
@@ -88,6 +114,11 @@
                         <button class="btn btn-info btn-sm evaluate-btn" data-job-id="{{ job.id }}">
                             <i class="fas fa-robot"></i> Analyze
                         </button>
+                        {% if not job.has_structured_data %}
+                        <button class="btn btn-warning btn-sm extract-btn" data-job-id="{{ job.id }}" title="Extract structured data with AI">
+                            <i class="fas fa-brain"></i>
+                        </button>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -130,10 +161,14 @@
 </div>
 
 <script>
+// Function to evaluate all jobs with AI
 function evaluateAllJobs() {
     const jobIds = [];
     document.querySelectorAll('.job-card').forEach(card => {
-        jobIds.push(card.dataset.jobId);
+        const jobId = card.dataset.jobId;
+        if (jobId) {
+            jobIds.push(jobId);
+        }
     });
     
     if (jobIds.length === 0) {
@@ -141,10 +176,12 @@ function evaluateAllJobs() {
         return;
     }
     
-    if (!confirm(`Evaluate ${jobIds.length} jobs with AI?`)) return;
+    if (!confirm(`Evaluate ${jobIds.length} jobs with AI? This may take a moment.`)) {
+        return;
+    }
     
     $.ajax({
-        url: '{% url "jobs:evaluate_jobs" %}',
+        url: '/jobs/api/evaluate-jobs/',
         method: 'POST',
         data: {
             job_ids: jobIds,
@@ -161,23 +198,154 @@ function evaluateAllJobs() {
     });
 }
 
-$(document).on('click', '.evaluate-btn', function() {
-    const jobId = $(this).data('job-id');
+// Function to extract a single job with AI
+function extractJobWithAI(jobId) {
+    if (!jobId) {
+        alert('Invalid job ID');
+        return;
+    }
+    
+    if (!confirm('Extract structured data from this job using AI?')) {
+        return;
+    }
+    
+    const btn = document.querySelector(`.extract-btn[data-job-id="${jobId}"]`);
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    }
+    
     $.ajax({
-        url: '{% url "jobs:evaluate_jobs" %}',
+        url: `/jobs/api/extract-job-details/${jobId}/`,
         method: 'POST',
         data: {
-            job_ids: [jobId],
-            use_ai: 'true',
             csrfmiddlewaretoken: '{{ csrf_token }}'
         },
         success: function(data) {
-            location.reload();
+            if (data.success) {
+                alert('✅ Extraction complete! Updated fields: ' + (data.updated_fields ? data.updated_fields.join(', ') : 'all'));
+                location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-brain"></i>';
+                }
+            }
         },
-        error: function() {
-            alert('❌ Error evaluating job');
+        error: function(xhr) {
+            console.error('Extraction error:', xhr);
+            alert('Error extracting job details. Please try again.');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-brain"></i>';
+            }
         }
     });
+}
+
+// Function to bulk extract all jobs with AI
+function bulkExtractWithAI() {
+    const jobCards = document.querySelectorAll('.job-card');
+    const jobIds = [];
+    jobCards.forEach(card => {
+        const jobId = card.dataset.jobId;
+        if (jobId) {
+            jobIds.push(jobId);
+        }
+    });
+    
+    if (jobIds.length === 0) {
+        alert('No jobs to extract');
+        return;
+    }
+    
+    if (!confirm(`Extract structured data from ${jobIds.length} jobs using AI? This may take a few minutes.`)) {
+        return;
+    }
+    
+    // Show progress
+    let processed = 0;
+    let success = 0;
+    let errors = 0;
+    
+    jobIds.forEach(function(jobId, index) {
+        // Add delay to avoid rate limiting
+        setTimeout(function() {
+            $.ajax({
+                url: `/jobs/api/extract-job-details/${jobId}/`,
+                method: 'POST',
+                data: {
+                    csrfmiddlewaretoken: '{{ csrf_token }}'
+                },
+                success: function(data) {
+                    processed++;
+                    if (data.success) success++;
+                    console.log(`Progress: ${processed}/${jobIds.length} - ${success} successful`);
+                    
+                    if (processed === jobIds.length) {
+                        const message = `✅ Bulk extraction complete!\n${success} jobs updated\n${errors} failed`;
+                        alert(message);
+                        location.reload();
+                    }
+                },
+                error: function() {
+                    processed++;
+                    errors++;
+                    console.log(`Progress: ${processed}/${jobIds.length} - ${errors} errors`);
+                    
+                    if (processed === jobIds.length) {
+                        const message = `⚠️ Bulk extraction complete with errors.\n${success} jobs updated\n${errors} failed`;
+                        alert(message);
+                        location.reload();
+                    }
+                }
+            });
+        }, index * 1000); // 1 second delay between requests
+    });
+}
+
+// Event listeners
+$(document).ready(function() {
+    // Evaluate button
+    $(document).on('click', '.evaluate-btn', function() {
+        const jobId = $(this).data('job-id');
+        if (!jobId) {
+            alert('Invalid job ID');
+            return;
+        }
+        
+        $.ajax({
+            url: '/jobs/api/evaluate-jobs/',
+            method: 'POST',
+            data: {
+                job_ids: [jobId],
+                use_ai: 'true',
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            success: function(data) {
+                location.reload();
+            },
+            error: function() {
+                alert('❌ Error evaluating job');
+            }
+        });
+    });
+    
+    // Extract button
+    $(document).on('click', '.extract-btn', function() {
+        const jobId = $(this).data('job-id');
+        if (!jobId) {
+            alert('Invalid job ID');
+            return;
+        }
+        extractJobWithAI(jobId);
+    });
 });
+
+// Export functions for use in templates
+window.evaluateAllJobs = evaluateAllJobs;
+window.bulkExtractWithAI = bulkExtractWithAI;
+window.extractJobWithAI = extractJobWithAI;
 </script>
 {% endblock %}

@@ -11,7 +11,7 @@
                 
                 <div class="row mt-3">
                     <div class="col-md-6">
-                        <p><i class="fas fa-map-marker-alt"></i> {{ job.location }}</p>
+                        <p><i class="fas fa-map-marker-alt"></i> {{ job.location|default:"Remote" }}</p>
                         <p><i class="fas fa-money-bill-wave"></i> {{ job.get_salary_display }}</p>
                     </div>
                     <div class="col-md-6">
@@ -21,29 +21,149 @@
                             {% if job.is_remote %}Remote{% else %}On-site{% endif %}
                             {% if job.is_hybrid %} (Hybrid){% endif %}
                         </p>
+                        {% if job.work_arrangement %}
+                        <p><i class="fas fa-briefcase"></i> {{ job.get_work_arrangement_display }}</p>
+                        {% endif %}
                     </div>
                 </div>
 
-                <div class="mb-3">
-                    <span class="badge bg-secondary">{{ job.get_job_type_display }}</span>
-                    <span class="badge bg-info">{{ job.get_experience_level_display }}</span>
-                    {% if job.is_remote %}
-                    <span class="badge bg-success">Remote</span>
-                    {% endif %}
+                <!-- Job Type & Experience Level -->
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <span class="badge bg-secondary">{{ job.get_job_type_display }}</span>
+                    </div>
+                    <div class="col-md-4">
+                        <span class="badge bg-info">{{ job.get_experience_level_display }}</span>
+                    </div>
+                    <div class="col-md-4">
+                        {% if job.is_remote %}
+                        <span class="badge bg-success">Remote</span>
+                        {% endif %}
+                        {% if job.is_hybrid %}
+                        <span class="badge bg-warning">Hybrid</span>
+                        {% endif %}
+                    </div>
                 </div>
 
+                <!-- Experience & Education -->
+                {% if job.experience_required or job.education_required %}
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        {% if job.experience_required %}
+                        <p><strong>Experience Required:</strong> {{ job.experience_required }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        {% if job.education_required %}
+                        <p><strong>Education Required:</strong> {{ job.education_required }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
                 <hr>
-                <h4>Job Description</h4>
-                <p>{{ job.description|linebreaks }}</p>
-                
+
+                <!-- Job Description -->
+                <div class="job-detail-section">
+                    <h4><i class="fas fa-align-left"></i> Job Description</h4>
+                    <p>{{ job.description|linebreaks }}</p>
+                </div>
+
+                <!-- Responsibilities -->
+                {% if job.responsibilities %}
+                <div class="job-detail-section">
+                    <h4><i class="fas fa-tasks"></i> Responsibilities</h4>
+                    <ul>
+                        {% for resp in job.responsibilities %}
+                        <li>{{ resp }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <!-- Requirements -->
+                {% if job.requirements %}
+                <div class="job-detail-section">
+                    <h4><i class="fas fa-check-circle"></i> Requirements</h4>
+                    <ul>
+                        {% for req in job.requirements %}
+                        <li>{{ req }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <!-- Qualifications -->
+                {% if job.qualifications %}
+                <div class="job-detail-section">
+                    <h4><i class="fas fa-graduation-cap"></i> Qualifications</h4>
+                    <ul>
+                        {% for qual in job.qualifications %}
+                        <li>{{ qual }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <!-- Benefits -->
+                {% if job.benefits %}
+                <div class="job-detail-section">
+                    <h4><i class="fas fa-gift"></i> Benefits</h4>
+                    <ul>
+                        {% for benefit in job.benefits %}
+                        <li>{{ benefit }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <!-- Skills -->
+                {% if job.skills %}
+                <div class="job-detail-section">
+                    <h4><i class="fas fa-code"></i> Skills</h4>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for skill in job.skills %}
+                        <span class="skill-tag">{{ skill }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Structured Data Summary -->
+                {% if job.has_structured_data %}
                 <hr>
-                <div class="d-flex gap-2">
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-robot"></i> AI-Extracted Data</h6>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <span class="badge bg-primary">Requirements: {{ job.get_requirements_count }}</span>
+                        </div>
+                        <div class="col-md-3">
+                            <span class="badge bg-success">Responsibilities: {{ job.get_responsibilities_count }}</span>
+                        </div>
+                        <div class="col-md-3">
+                            <span class="badge bg-warning text-dark">Benefits: {{ job.get_benefits_count }}</span>
+                        </div>
+                        <div class="col-md-3">
+                            <span class="badge bg-info">Skills: {{ job.get_skills_count }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <hr>
+                <div class="d-flex gap-2 flex-wrap">
                     <a href="{{ job.source_url }}" target="_blank" class="btn btn-success">
                         <i class="fas fa-external-link-alt"></i> Apply on Source
                     </a>
                     <button class="btn btn-info" onclick="regenerateAnalysis()">
                         <i class="fas fa-sync"></i> Regenerate AI Analysis
                     </button>
+                    {% if not job.has_structured_data %}
+                    <button class="btn btn-primary" onclick="extractWithAI({{ job.id }})">
+                        <i class="fas fa-robot"></i> Extract with AI
+                    </button>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -114,30 +234,29 @@
                     </li>
                 </ul>
 
-                {% if ai_insights %}
+                <!-- AI Insights -->
+                {% if evaluation.ai_reasons %}
                 <hr>
                 <h6>AI Insights</h6>
-                {% if ai_insights.reasons %}
                 <p><strong>Why this job matches you:</strong></p>
                 <ul>
-                    {% for reason in ai_insights.reasons|slice:":3" %}
+                    {% for reason in evaluation.ai_reasons|slice:":3" %}
                     <li>{{ reason }}</li>
                     {% endfor %}
                 </ul>
                 {% endif %}
 
-                {% if ai_insights.concerns %}
+                {% if evaluation.ai_concerns %}
                 <p><strong>Potential concerns:</strong></p>
                 <ul>
-                    {% for concern in ai_insights.concerns|slice:":2" %}
+                    {% for concern in evaluation.ai_concerns|slice:":2" %}
                     <li>{{ concern }}</li>
                     {% endfor %}
                 </ul>
                 {% endif %}
 
-                {% if ai_insights.culture_fit %}
-                <p><strong>Culture Fit:</strong> {{ ai_insights.culture_fit }}%</p>
-                {% endif %}
+                {% if evaluation.culture_fit %}
+                <p><strong>Culture Fit:</strong> {{ evaluation.culture_fit }}%</p>
                 {% endif %}
 
                 {% if evaluation.evaluation_notes %}
@@ -165,6 +284,13 @@
                 <p><strong>Type:</strong> {{ job.source.get_source_type_display }}</p>
                 <p><strong>Added:</strong> {{ job.created_at|date:"M d, Y" }}</p>
                 <p><strong>External ID:</strong> {{ job.external_id|default:"N/A" }}</p>
+                <p><strong>AI Enriched:</strong> 
+                    {% if job.has_structured_data %}
+                    <span class="badge bg-success">Yes</span>
+                    {% else %}
+                    <span class="badge bg-warning text-dark">Pending</span>
+                    {% endif %}
+                </p>
             </div>
         </div>
     </div>
@@ -204,6 +330,36 @@ function regenerateAnalysis() {
         },
         error: function() {
             alert('Error regenerating analysis');
+        }
+    });
+}
+
+function extractWithAI(jobId) {
+    if (!confirm('Extract structured data from this job description using AI?')) {
+        return;
+    }
+    
+    const btn = document.querySelector('.btn-primary .fa-robot');
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Extracting...';
+    }
+    
+    $.ajax({
+        url: '{% url "jobs:extract_job_details" job.id %}',
+        method: 'POST',
+        data: {
+            csrfmiddlewaretoken: '{{ csrf_token }}'
+        },
+        success: function(data) {
+            if (data.success) {
+                alert('✅ AI extraction complete! Updated fields: ' + data.updated_fields.join(', '));
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        },
+        error: function() {
+            alert('Error extracting job details');
         }
     });
 }

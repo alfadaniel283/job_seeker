@@ -20,18 +20,22 @@ class JobProcessor:
         self.fetcher_factory = JobFetcherFactory()
     
     def process_source(self, source_id: int, user=None):
-        """Process a single job source"""
+        """Process a single job source with AI-powered parsing"""
         try:
             source = JobSource.objects.get(id=source_id, is_active=True)
             logger.info(f"Processing source: {source.name} ({source.source_type})")
+            logger.info(f"URL: {source.url[:100]}...")
             
             fetcher = self.fetcher_factory.get_fetcher(source.source_type)
             
+            # Fetch HTML content
             html_content = fetcher.fetch_page(source.url)
             if not html_content:
                 logger.error(f"Failed to fetch content from {source.url}")
                 return []
             
+            # Parse job data (AI-powered)
+            logger.info("🤖 Using AI to parse job data...")
             job_data_list = fetcher.parse_job_data(html_content, source.url)
             logger.info(f"Found {len(job_data_list)} jobs from {source.name}")
             
@@ -39,6 +43,7 @@ class JobProcessor:
                 logger.warning(f"No jobs found from {source.name}")
                 return []
             
+            # Save jobs with structured data
             jobs_created = self._save_jobs(job_data_list, source)
             logger.info(f"Saved {len(jobs_created)} new jobs from {source.name}")
             
@@ -53,6 +58,7 @@ class JobProcessor:
                 except Exception as e:
                     logger.error(f"Job evaluation failed: {e}")
             
+            logger.info(f"Successfully processed {len(jobs_created)} jobs from {source.name}")
             return jobs_created
             
         except JobSource.DoesNotExist:
@@ -72,7 +78,7 @@ class JobProcessor:
     
     @transaction.atomic
     def _save_jobs(self, job_data_list: List[Dict], source: JobSource) -> List[Job]:
-        """Save jobs to database"""
+        """Save jobs to database with AI-extracted structured data"""
         jobs_created = []
         
         for job_data in job_data_list:
@@ -89,6 +95,22 @@ class JobProcessor:
                 if len(source_url) > 2000:
                     source_url = source_url[:1997] + '...'
                 
+                # Extract structured data from AI response
+                requirements = job_data.get('requirements', [])
+                responsibilities = job_data.get('responsibilities', [])
+                benefits = job_data.get('benefits', [])
+                qualifications = job_data.get('qualifications', [])
+                
+                # Ensure lists are valid
+                if not isinstance(requirements, list):
+                    requirements = []
+                if not isinstance(responsibilities, list):
+                    responsibilities = []
+                if not isinstance(benefits, list):
+                    benefits = []
+                if not isinstance(qualifications, list):
+                    qualifications = []
+                
                 job = Job.objects.create(
                     title=job_data['title'][:255] if job_data.get('title') else 'Untitled',
                     description=job_data.get('description', 'No description available'),
@@ -102,9 +124,21 @@ class JobProcessor:
                     external_id=job_data.get('external_id', '')[:100],
                     posted_date=job_data.get('posted_date', timezone.now()),
                     content_hash=job_data['content_hash'],
+                    # AI-extracted structured data
+                    requirements=requirements,
+                    responsibilities=responsibilities,
+                    benefits=benefits,
+                    qualifications=qualifications,
+                    experience_required=job_data.get('experience_required', ''),
+                    education_required=job_data.get('education_required', ''),
+                    job_type=job_data.get('job_type', 'FULL_TIME'),
+                    experience_level=job_data.get('experience_level', 'MID'),
                 )
                 jobs_created.append(job)
-                logger.debug(f"Created job: {job.title} at {job.company}")
+                
+                # Log what AI extracted
+                if requirements or responsibilities or benefits:
+                    logger.info(f"📊 AI extracted for {job.title}: {len(requirements)} requirements, {len(responsibilities)} responsibilities, {len(benefits)} benefits")
                 
             except Exception as e:
                 logger.error(f"Error saving job: {e}")

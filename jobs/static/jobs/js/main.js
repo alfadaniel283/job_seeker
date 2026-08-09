@@ -187,6 +187,226 @@ function analyzeWithAI(jobId) {
     });
 }
 
+// ============================================
+// AI STRUCTURED DATA EXTRACTION FUNCTIONS
+// ============================================
+
+/**
+ * Extract structured data from a job using AI
+ */
+function extractJobWithAI(jobId) {
+    if (!confirm('Extract structured data from this job description using AI?')) {
+        return;
+    }
+    
+    // Find the extract button
+    const btn = document.querySelector(`.extract-btn[data-job-id="${jobId}"]`) || 
+                document.querySelector('.btn-primary .fa-robot')?.closest('button');
+    
+    if (btn) {
+        btn.disabled = true;
+        const originalHtml = btn.innerHTML;
+        btn.dataset.originalHtml = originalHtml;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Extracting...';
+    }
+    
+    $.ajax({
+        url: `/jobs/api/extract-job-details/${jobId}/`,
+        method: 'POST',
+        data: {
+            csrfmiddlewaretoken: getCsrfToken()
+        },
+        success: function(data) {
+            if (data.success) {
+                showAlert('success', `✅ AI extraction complete! Updated fields: ${data.updated_fields.join(', ')}`);
+                setTimeout(function() {
+                    location.reload();
+                }, 2000);
+            } else {
+                showAlert('danger', '❌ Error: ' + data.error);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = btn.dataset.originalHtml || '<i class="fas fa-robot"></i> Extract with AI';
+                }
+            }
+        },
+        error: function(xhr, status, error) {
+            handleAjaxError(xhr, status, error);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = btn.dataset.originalHtml || '<i class="fas fa-robot"></i> Extract with AI';
+            }
+        }
+    });
+}
+
+/**
+ * Bulk extract structured data from all jobs
+ */
+function bulkExtractWithAI() {
+    const jobCards = document.querySelectorAll('.job-card');
+    const jobIds = [];
+    jobCards.forEach(card => {
+        jobIds.push(card.dataset.jobId);
+    });
+    
+    if (jobIds.length === 0) {
+        showAlert('warning', 'No jobs to extract');
+        return;
+    }
+    
+    if (!confirm(`Extract structured data from ${jobIds.length} jobs using AI? This may take a few minutes.`)) {
+        return;
+    }
+    
+    showAlert('info', '⏳ Starting bulk extraction...');
+    
+    // Add progress indicator
+    const progressHtml = `
+        <div id="extraction-progress" class="extraction-progress"></div>
+        <div id="extraction-status" style="position:fixed;bottom:20px;right:20px;background:#333;color:white;padding:10px 20px;border-radius:8px;z-index:9998;display:none;">
+            Processing: <span id="extraction-count">0</span>/<span id="extraction-total">${jobIds.length}</span>
+        </div>
+    `;
+    $('body').append(progressHtml);
+    $('#extraction-status').show();
+    $('#extraction-total').text(jobIds.length);
+    
+    let processed = 0;
+    let success = 0;
+    
+    jobIds.forEach(function(jobId, index) {
+        setTimeout(function() {
+            $.ajax({
+                url: `/jobs/api/extract-job-details/${jobId}/`,
+                method: 'POST',
+                data: {
+                    csrfmiddlewaretoken: getCsrfToken()
+                },
+                success: function(data) {
+                    processed++;
+                    if (data.success) success++;
+                    updateExtractionProgress(processed, jobIds.length);
+                    
+                    if (processed === jobIds.length) {
+                        $('#extraction-progress').remove();
+                        $('#extraction-status').remove();
+                        showAlert('success', `✅ Bulk extraction complete! ${success} of ${processed} jobs updated.`);
+                        setTimeout(function() {
+                            location.reload();
+                        }, 2000);
+                    }
+                },
+                error: function() {
+                    processed++;
+                    updateExtractionProgress(processed, jobIds.length);
+                    
+                    if (processed === jobIds.length) {
+                        $('#extraction-progress').remove();
+                        $('#extraction-status').remove();
+                        showAlert('warning', `⚠️ Bulk extraction complete with errors. ${success} of ${processed} jobs updated.`);
+                        setTimeout(function() {
+                            location.reload();
+                        }, 2000);
+                    }
+                }
+            });
+        }, index * 800); // 800ms delay between requests to avoid rate limiting
+    });
+}
+
+/**
+ * Update extraction progress indicator
+ */
+function updateExtractionProgress(processed, total) {
+    const percentage = Math.round((processed / total) * 100);
+    const progressEl = $('#extraction-progress');
+    if (progressEl.length) {
+        progressEl.css('width', percentage + '%');
+    }
+    
+    // Update status text
+    const countEl = $('#extraction-count');
+    if (countEl.length) {
+        countEl.text(processed);
+    }
+}
+
+/**
+ * Check if a job has AI extracted data
+ */
+function hasAIExtractedData(jobId) {
+    const card = document.querySelector(`.job-card[data-job-id="${jobId}"]`);
+    if (card) {
+        return card.querySelector('.ai-enriched-badge') !== null;
+    }
+    return false;
+}
+
+/**
+ * Display AI extraction summary on job detail page
+ */
+function showExtractionSummary(data) {
+    if (!data) return;
+    
+    const summary = `
+        <div class="alert alert-info mt-3">
+            <h6><i class="fas fa-robot"></i> AI Extraction Summary</h6>
+            <ul class="mb-0">
+                <li>Requirements: ${data.requirements_count || 0}</li>
+                <li>Responsibilities: ${data.responsibilities_count || 0}</li>
+                <li>Benefits: ${data.benefits_count || 0}</li>
+                <li>Skills: ${data.skills_count || 0}</li>
+            </ul>
+        </div>
+    `;
+    $('.job-detail-section:last').after(summary);
+}
+
+/**
+ * Extract single job from detail page
+ */
+function extractDetailWithAI(jobId) {
+    if (!confirm('Extract structured data from this job description using AI?')) {
+        return;
+    }
+    
+    const btn = document.querySelector('.btn-primary .fa-robot')?.closest('button');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Extracting...';
+    }
+    
+    $.ajax({
+        url: `/jobs/api/extract-job-details/${jobId}/`,
+        method: 'POST',
+        data: {
+            csrfmiddlewaretoken: getCsrfToken()
+        },
+        success: function(data) {
+            if (data.success) {
+                showAlert('success', `✅ AI extraction complete! Updated fields: ${data.updated_fields.join(', ')}`);
+                setTimeout(function() {
+                    location.reload();
+                }, 2000);
+            } else {
+                showAlert('danger', '❌ Error: ' + data.error);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-robot"></i> Extract with AI';
+                }
+            }
+        },
+        error: function(xhr, status, error) {
+            handleAjaxError(xhr, status, error);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-robot"></i> Extract with AI';
+            }
+        }
+    });
+}
+
 // Keyboard shortcuts
 $(document).keydown(function(e) {
     // Ctrl+Enter to submit forms
@@ -239,3 +459,9 @@ window.showAlert = showAlert;
 window.getCsrfToken = getCsrfToken;
 window.truncateText = truncateText;
 window.formatDate = formatDate;
+window.extractJobWithAI = extractJobWithAI;
+window.bulkExtractWithAI = bulkExtractWithAI;
+window.extractDetailWithAI = extractDetailWithAI;
+window.updateExtractionProgress = updateExtractionProgress;
+window.hasAIExtractedData = hasAIExtractedData;
+window.showExtractionSummary = showExtractionSummary;

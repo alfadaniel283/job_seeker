@@ -325,6 +325,66 @@ def regenerate_analysis(request, job_id):
         }, status=500)
 
 @login_required
+@require_POST
+def extract_job_details(request, job_id):
+    """Extract structured data from job description using AI"""
+    job = get_object_or_404(Job, id=job_id, is_active=True)
+    
+    try:
+        ai_service = AIService()
+        
+        if not job.description or len(job.description) < 100:
+            return JsonResponse({
+                'success': False,
+                'error': 'Job description is too short for extraction (minimum 100 characters)'
+            }, status=400)
+        
+        # Extract structured data
+        extracted = ai_service.extract_job_details(job.description)
+        
+        if not extracted:
+            return JsonResponse({
+                'success': False,
+                'error': 'AI extraction returned no data'
+            }, status=400)
+        
+        # Update job with extracted data
+        updates = {}
+        if extracted.get('requirements'):
+            updates['requirements'] = extracted['requirements']
+        if extracted.get('responsibilities'):
+            updates['responsibilities'] = extracted['responsibilities']
+        if extracted.get('benefits'):
+            updates['benefits'] = extracted['benefits']
+        if extracted.get('qualifications'):
+            updates['qualifications'] = extracted['qualifications']
+        if extracted.get('experience_required'):
+            updates['experience_required'] = extracted['experience_required']
+        if extracted.get('education_required'):
+            updates['education_required'] = extracted['education_required']
+        if extracted.get('skills'):
+            updates['skills'] = extracted['skills']
+        if extracted.get('keywords'):
+            updates['keywords'] = extracted['keywords']
+        
+        if updates:
+            Job.objects.filter(id=job.id).update(**updates)
+            logger.info(f"✅ Extracted structured data for job {job.id}: {list(updates.keys())}")
+        
+        return JsonResponse({
+            'success': True,
+            'extracted': extracted,
+            'updated_fields': list(updates.keys())
+        })
+        
+    except Exception as e:
+        logger.error(f"Error extracting job details: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@login_required
 def dashboard(request):
     """Dashboard view with statistics and analytics"""
     # Get job statistics
@@ -341,12 +401,20 @@ def dashboard(request):
         count=models.Count('id')
     ).order_by('-count')[:10]
     
+    # Get AI extraction stats
+    jobs_with_structured_data = Job.objects.filter(
+        is_active=True
+    ).exclude(
+        requirements=[]
+    ).count()
+    
     context = {
         'total_jobs': total_jobs,
         'remote_jobs': remote_jobs,
         'evaluated_count': evaluated_count,
         'recommended_count': recommended_count,
         'top_companies': top_companies,
+        'jobs_with_structured_data': jobs_with_structured_data,
     }
     return render(request, 'jobs/dashboard.html', context)
 
@@ -356,6 +424,11 @@ def health_check(request):
         'status': 'healthy',
         'database': 'connected',
         'jobs_count': Job.objects.filter(is_active=True).count(),
+        'ai_extracted_jobs': Job.objects.filter(
+            is_active=True
+        ).exclude(
+            requirements=[]
+        ).count(),
     })
 
 
