@@ -72,7 +72,7 @@ services:
   # ============================================
   # POSTGRESQL DATABASE
   # ============================================
-  - type: postgresql
+  - type: postgres  # g
     name: ai-job-seeker-db
     plan: free
     ipAllowList: []  # Allow only internal connections
