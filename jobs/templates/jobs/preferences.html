@@ -13,11 +13,11 @@
                 <p class="text-muted">
                     Configure your job preferences to get personalized AI-powered recommendations.
                 </p>
-                
-                <form method="post">
+
+                <form method="post" id="preferences-form">
                     {% csrf_token %}
                     {{ form|crispy }}
-                    
+
                     <div class="mt-3">
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save"></i> Save Preferences
@@ -44,7 +44,7 @@
                 </ul>
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i>
-                    After saving preferences, all jobs will be re-evaluated with AI for better recommendations.
+                    After saving preferences, all jobs will be re‑evaluated with AI for better recommendations.
                 </div>
             </div>
         </div>
@@ -53,23 +53,41 @@
 
 <script>
 function evaluateWithAI() {
-    if (confirm('Re-evaluate all jobs with AI? This may take a few minutes.')) {
-        $.ajax({
-            url: '{% url "jobs:preferences" %}',
-            method: 'POST',
-            data: {
-                csrfmiddlewaretoken: '{{ csrf_token }}',
-                re_evaluate: 'true'
-            },
-            success: function() {
-                alert('✅ Jobs re-evaluated with AI!');
-                location.reload();
-            },
-            error: function() {
-                alert('❌ Error re-evaluating jobs');
-            }
-        });
+    if (!confirm('Re-evaluate all jobs with AI? This may take a few minutes.')) {
+        return;
     }
+
+    const btn = document.querySelector('.btn-success');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Re-evaluating...';
+
+    // Get all job IDs from the job cards (if any) or use a flag to evaluate all
+    const jobIds = [];
+    document.querySelectorAll('.job-card').forEach(card => {
+        const id = card.dataset.jobId;
+        if (id) jobIds.push(id);
+    });
+
+    // If no jobs on page, send 'all' to evaluate all jobs
+    const payload = jobIds.length > 0 ? { job_ids: jobIds, use_ai: 'true' } : { evaluate_all: 'true' };
+
+    fetch('/jobs/api/evaluate-jobs/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(`✅ ${data.total_evaluated || 0} jobs re-evaluated with AI!`);
+        location.reload();
+    })
+    .catch(error => {
+        alert('❌ Error re-evaluating jobs: ' + error);
+        location.reload();
+    });
 }
 </script>
 {% endblock %}

@@ -1,5 +1,5 @@
 from django import forms
-from .models import JobSource, UserJobPreferences
+from .models import JobSource, UserJobPreferences, Job
 
 class JobSourceForm(forms.ModelForm):
     class Meta:
@@ -42,26 +42,24 @@ class BulkJobSourceForm(forms.Form):
         help_text='Skip URLs that already exist in the system'
     )
 
-
 class JobPreferencesForm(forms.ModelForm):
     class Meta:
         model = UserJobPreferences
         fields = [
             'preferred_locations', 'remote_only', 'hybrid_allowed',
-            'preferred_job_types', 'preferred_experience_levels',
             'min_salary', 'max_salary', 'include_keywords', 'exclude_keywords'
+            # 'preferred_job_types' and 'preferred_experience_levels' removed
         ]
         widgets = {
             'preferred_locations': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'New York, London, ...'}),
             'remote_only': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'hybrid_allowed': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'preferred_job_types': forms.SelectMultiple(attrs={'class': 'form-select'}),
-            'preferred_experience_levels': forms.SelectMultiple(attrs={'class': 'form-select'}),
             'min_salary': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '50000'}),
             'max_salary': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '100000'}),
-            'include_keywords': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'python,django,react'}),
-            'exclude_keywords': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'senior,manager'}),
+            'include_keywords': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'python, django, ...'}),
+            'exclude_keywords': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'senior, manager, ...'}),
         }
+
 
 class JobSearchForm(forms.Form):
     search = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Search jobs...'}))
