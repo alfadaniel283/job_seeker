@@ -13,10 +13,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-your-secret-key-here')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
+DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
 # Detect Render environment
-RENDER = os.getenv('RENDER', 'False') == 'True'
+# Render always sets RENDER to the lowercase string "true" - compare case-insensitively
+RENDER = os.getenv('RENDER', 'False').lower() == 'true'
 
 # Allowed Hosts
 if RENDER:
@@ -259,4 +260,3 @@ else:
             },
         },
     }
-
