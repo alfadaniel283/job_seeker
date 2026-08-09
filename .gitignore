@@ -157,10 +157,7 @@ db.sqlite3-journal
 media/
 uploads/
 
-# Static files (collected)
-staticfiles/
-static/
-*.static
+
 
 # Django migrations (optional - uncomment if you want to keep them)
 # */migrations/*.py
@@ -364,13 +361,6 @@ keys.txt
 # Frontend (If any)
 # ============================================
 
-# Node modules
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-package-lock.json
-yarn.lock
 
 # ============================================
 # Performance Monitoring
@@ -443,8 +433,7 @@ db.sqlite3
 *.log
 logs/
 media/
-staticfiles/
-static/
+
 
 # IDE
 .vscode/
