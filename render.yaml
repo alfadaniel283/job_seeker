@@ -6,8 +6,6 @@ services:
     name: ai-job-seeker
     runtime: python
     plan: free
-    repo: https://github.com/yourusername/job_seeker
-    branch: main
     
     # Build and Start Commands
     buildCommand: ./build.sh
@@ -16,7 +14,7 @@ services:
     # Environment Variables
     envVars:
       - key: PYTHON_VERSION
-        value: 3.13.5
+        value: 3.11.0
         
       - key: DJANGO_SECRET_KEY
         generateValue: true
@@ -37,7 +35,7 @@ services:
       
       # AI Provider Keys - Set these in Render Dashboard
       - key: GROQ_API_KEY
-        sync: false  # Will be set manually in dashboard
+        sync: false
       
       - key: OPENAI_API_KEY
         sync: false
