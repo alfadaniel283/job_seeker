@@ -14,7 +14,7 @@ services:
     # Environment Variables
     envVars:
       - key: PYTHON_VERSION
-        value: "3.13.5"
+        value: "3.11.9"
         
       - key: DJANGO_SECRET_KEY
         generateValue: true
@@ -41,6 +41,16 @@ services:
         sync: false
       
       - key: GOOGLE_API_KEY
+        sync: false
+      
+      # Admin user - Set these in Render Dashboard (used by create_admin command)
+      - key: DJANGO_SUPERUSER_USERNAME
+        sync: false
+      
+      - key: DJANGO_SUPERUSER_EMAIL
+        sync: false
+      
+      - key: DJANGO_SUPERUSER_PASSWORD
         sync: false
       
       # AI Provider Selection

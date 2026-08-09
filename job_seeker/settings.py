@@ -20,8 +20,14 @@ DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 RENDER = os.getenv('RENDER', 'False').lower() == 'true'
 
 # Allowed Hosts
-if RENDER:
-    ALLOWED_HOSTS = [os.getenv('RENDER_EXTERNAL_HOSTNAME', '*.onrender.com')]
+# Prefer an explicit ALLOWED_HOSTS env var (comma-separated) if provided.
+_allowed_hosts_env = os.getenv('ALLOWED_HOSTS')
+if _allowed_hosts_env:
+    ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts_env.split(',') if h.strip()]
+elif RENDER:
+    # Fall back to Render's own hostname (or a wildcard subdomain match,
+    # which requires a leading dot per Django's ALLOWED_HOSTS syntax).
+    ALLOWED_HOSTS = [os.getenv('RENDER_EXTERNAL_HOSTNAME', '.onrender.com')]
 else:
     ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
 

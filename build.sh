@@ -19,4 +19,7 @@ python manage.py collectstatic --noinput
 echo "🗄️ Running database migrations..."
 python manage.py migrate --noinput
 
+#Creating superuser in app
+python manage.py create_admin
+
 echo "✅ Build complete!"
