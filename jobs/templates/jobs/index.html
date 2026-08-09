@@ -1,0 +1,91 @@
+{% extends 'jobs/base.html' %}
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="jumbotron bg-light p-5 rounded-lg mb-4">
+    <h1 class="display-4">
+        <i class="fas fa-brain text-primary"></i> AI Job Aggregator
+    </h1>
+    <p class="lead">
+        Intelligent job discovery powered by AI. Find your perfect match with personalized recommendations.
+    </p>
+    <hr class="my-4">
+    <p>
+        {% if user.is_authenticated %}
+        Start exploring jobs or add new sources to get AI-powered recommendations.
+        {% else %}
+        Please login to access all features.
+        {% endif %}
+    </p>
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h3>{{ total_jobs }}</h3>
+                    <p class="text-muted">Total Jobs</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h3>🤖</h3>
+                    <p class="text-muted">AI-Powered Matching</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h3>🚀</h3>
+                    <p class="text-muted">Smart Recommendations</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if user.is_authenticated and recommended_jobs %}
+<div class="mb-4">
+    <h2><i class="fas fa-star text-warning"></i> Recommended for You</h2>
+    <div class="row">
+        {% for job in recommended_jobs %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">{{ job.title }}</h5>
+                    <h6 class="card-subtitle text-muted">{{ job.company }}</h6>
+                    <p class="card-text">{{ job.location }}</p>
+                    <a href="{% url 'jobs:job_detail' job.id %}" class="btn btn-primary btn-sm">
+                        View Details
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if recent_jobs %}
+<div>
+    <h2><i class="fas fa-clock"></i> Recent Jobs</h2>
+    <div class="row">
+        {% for job in recent_jobs %}
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">{{ job.title }}</h5>
+                    <h6 class="card-subtitle text-muted">{{ job.company }}</h6>
+                    <p class="card-text">{{ job.location }}</p>
+                    <a href="{% url 'jobs:job_detail' job.id %}" class="btn btn-primary btn-sm">
+                        View Details
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

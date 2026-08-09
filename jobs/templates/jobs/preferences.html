@@ -1,0 +1,75 @@
+{% extends 'jobs/base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}Preferences{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-cog"></i> Your Preferences</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Configure your job preferences to get personalized AI-powered recommendations.
+                </p>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Preferences
+                        </button>
+                        <button type="button" class="btn btn-success" onclick="evaluateWithAI()">
+                            <i class="fas fa-robot"></i> Re-evaluate All Jobs with AI
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5><i class="fas fa-lightbulb"></i> AI Recommendations</h5>
+            </div>
+            <div class="card-body">
+                <h6>Tips for Better AI Matching:</h6>
+                <ul>
+                    <li>Add specific skills in the include keywords field (e.g., python, django, react)</li>
+                    <li>Exclude keywords to filter out unwanted jobs</li>
+                    <li>Set preferred locations for better location matching</li>
+                    <li>Remote-only preference will prioritize remote jobs</li>
+                </ul>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    After saving preferences, all jobs will be re-evaluated with AI for better recommendations.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function evaluateWithAI() {
+    if (confirm('Re-evaluate all jobs with AI? This may take a few minutes.')) {
+        $.ajax({
+            url: '{% url "jobs:preferences" %}',
+            method: 'POST',
+            data: {
+                csrfmiddlewaretoken: '{{ csrf_token }}',
+                re_evaluate: 'true'
+            },
+            success: function() {
+                alert('✅ Jobs re-evaluated with AI!');
+                location.reload();
+            },
+            error: function() {
+                alert('❌ Error re-evaluating jobs');
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

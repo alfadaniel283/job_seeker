@@ -1,0 +1,211 @@
+{% extends 'jobs/base.html' %}
+{% block title %}{{ job.title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <h2>{{ job.title }}</h2>
+                <h5 class="text-muted">{{ job.company }}</h5>
+                
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <p><i class="fas fa-map-marker-alt"></i> {{ job.location }}</p>
+                        <p><i class="fas fa-money-bill-wave"></i> {{ job.get_salary_display }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><i class="fas fa-clock"></i> Posted: {{ job.posted_date|date:"M d, Y" }}</p>
+                        <p>
+                            <i class="fas fa-laptop"></i> 
+                            {% if job.is_remote %}Remote{% else %}On-site{% endif %}
+                            {% if job.is_hybrid %} (Hybrid){% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <span class="badge bg-secondary">{{ job.get_job_type_display }}</span>
+                    <span class="badge bg-info">{{ job.get_experience_level_display }}</span>
+                    {% if job.is_remote %}
+                    <span class="badge bg-success">Remote</span>
+                    {% endif %}
+                </div>
+
+                <hr>
+                <h4>Job Description</h4>
+                <p>{{ job.description|linebreaks }}</p>
+                
+                <hr>
+                <div class="d-flex gap-2">
+                    <a href="{{ job.source_url }}" target="_blank" class="btn btn-success">
+                        <i class="fas fa-external-link-alt"></i> Apply on Source
+                    </a>
+                    <button class="btn btn-info" onclick="regenerateAnalysis()">
+                        <i class="fas fa-sync"></i> Regenerate AI Analysis
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- AI Evaluation Card -->
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white">
+                <i class="fas fa-robot"></i> AI Evaluation
+            </div>
+            <div class="card-body">
+                {% if evaluation %}
+                <div class="text-center mb-3">
+                    <div class="display-4">{{ evaluation.relevance_score|floatformat:0 }}%</div>
+                    <div class="text-muted">Match Score</div>
+                </div>
+                
+                <div class="progress mb-3">
+                    <div class="progress-bar bg-success" style="width: {{ evaluation.relevance_score }}%">
+                        {{ evaluation.relevance_score|floatformat:0 }}%
+                    </div>
+                </div>
+                
+                {% if evaluation.is_recommended %}
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i> Recommended for you
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> Not recommended
+                </div>
+                {% endif %}
+
+                <hr>
+                <h6>Detailed Analysis</h6>
+                <ul class="list-unstyled">
+                    <li>
+                        <i class="fas fa-map-marker-alt"></i>
+                        Location Match: 
+                        {% if evaluation.location_match %}
+                        <span class="badge bg-success">Match</span>
+                        {% else %}
+                        <span class="badge bg-danger">No Match</span>
+                        {% endif %}
+                    </li>
+                    <li>
+                        <i class="fas fa-laptop"></i>
+                        Remote Match: 
+                        {% if evaluation.remote_match %}
+                        <span class="badge bg-success">Match</span>
+                        {% else %}
+                        <span class="badge bg-danger">No Match</span>
+                        {% endif %}
+                    </li>
+                    <li>
+                        <i class="fas fa-money-bill-wave"></i>
+                        Salary Match: 
+                        {% if evaluation.salary_match %}
+                        <span class="badge bg-success">Match</span>
+                        {% else %}
+                        <span class="badge bg-danger">No Match</span>
+                        {% endif %}
+                    </li>
+                    <li>
+                        <i class="fas fa-tools"></i>
+                        Skill Match: {{ evaluation.skill_match|floatformat:0 }}%
+                    </li>
+                </ul>
+
+                {% if ai_insights %}
+                <hr>
+                <h6>AI Insights</h6>
+                {% if ai_insights.reasons %}
+                <p><strong>Why this job matches you:</strong></p>
+                <ul>
+                    {% for reason in ai_insights.reasons|slice:":3" %}
+                    <li>{{ reason }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+
+                {% if ai_insights.concerns %}
+                <p><strong>Potential concerns:</strong></p>
+                <ul>
+                    {% for concern in ai_insights.concerns|slice:":2" %}
+                    <li>{{ concern }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+
+                {% if ai_insights.culture_fit %}
+                <p><strong>Culture Fit:</strong> {{ ai_insights.culture_fit }}%</p>
+                {% endif %}
+                {% endif %}
+
+                {% if evaluation.evaluation_notes %}
+                <hr>
+                <h6>Detailed Notes</h6>
+                <pre class="bg-light p-2 rounded" style="white-space: pre-wrap; font-size: 0.9rem;">{{ evaluation.evaluation_notes }}</pre>
+                {% endif %}
+
+                {% else %}
+                <p>No evaluation available. Click below to analyze with AI.</p>
+                <button class="btn btn-primary" onclick="analyzeJob()">
+                    <i class="fas fa-robot"></i> Analyze with AI
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Source Information -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i> Source Information
+            </div>
+            <div class="card-body">
+                <p><strong>Source:</strong> {{ job.source.name }}</p>
+                <p><strong>Type:</strong> {{ job.source.get_source_type_display }}</p>
+                <p><strong>Added:</strong> {{ job.created_at|date:"M d, Y" }}</p>
+                <p><strong>External ID:</strong> {{ job.external_id|default:"N/A" }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function analyzeJob() {
+    $.ajax({
+        url: '{% url "jobs:ai_analyze_job" job.id %}',
+        method: 'GET',
+        success: function(data) {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error analyzing job: ' + data.error);
+            }
+        },
+        error: function() {
+            alert('Error analyzing job');
+        }
+    });
+}
+
+function regenerateAnalysis() {
+    $.ajax({
+        url: '{% url "jobs:regenerate_analysis" job.id %}',
+        method: 'POST',
+        data: {
+            csrfmiddlewaretoken: '{{ csrf_token }}'
+        },
+        success: function(data) {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        },
+        error: function() {
+            alert('Error regenerating analysis');
+        }
+    });
+}
+</script>
+{% endblock %}

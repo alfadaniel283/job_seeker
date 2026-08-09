@@ -1,0 +1,429 @@
+# ============================================
+# Python
+# ============================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# ============================================
+# Django Specific
+# ============================================
+
+# Logs
+logs/
+*.log
+
+# Local database
+db.sqlite3
+db.sqlite3-journal
+
+# Media files
+media/
+uploads/
+
+# Static files (collected)
+staticfiles/
+static/
+*.static
+
+# Django migrations (optional - uncomment if you want to keep them)
+# */migrations/*.py
+# !*/migrations/__init__.py
+
+# Local settings
+local_settings.py
+*.local.py
+
+# ============================================
+# IDE / Editor
+# ============================================
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+.history/
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+.idea_modules/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+.sublime/
+
+# Vim
+*.swp
+*.swo
+*~
+*.un~
+*.orig
+
+# Emacs
+*~
+\#*
+.\#*
+
+# Atom
+.atom/
+
+# VS Code settings
+.vscode/
+
+# ============================================
+# OS / Environment
+# ============================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+*.pid
+*.lock
+
+# ============================================
+# Project Specific
+# ============================================
+
+# Logs directory
+logs/
+*.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Database backups
+*.sqlite3
+*.db
+*.sql
+*.backup
+
+# Data files
+data/
+*.csv
+*.json
+*.xml
+*.xlsx
+
+# Models (AI/ML)
+models/
+*.h5
+*.pb
+*.pkl
+*.pickle
+*.pth
+*.pt
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Secret keys
+*.key
+*.pem
+*.crt
+*.csr
+
+# API keys
+.credentials
+credentials.json
+*.secret
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Coverage reports
+coverage/
+htmlcov/
+.coverage
+
+# Profiling data
+*.prof
+*.pstats
+
+# ============================================
+# CI/CD
+# ============================================
+
+# GitHub Actions
+.github/
+
+# GitLab CI
+.gitlab-ci.yml
+
+# Travis CI
+.travis.yml
+
+# Jenkins
+jenkins/
+
+# CircleCI
+.circleci/
+
+# ============================================
+# Docker
+# ============================================
+
+# Docker volumes
+volumes/
+*.volume
+*.vol
+
+# Docker compose override files
+docker-compose.override.yml
+docker-compose.*.yml
+
+# ============================================
+# Package Manager Lock Files (Choose one)
+# ============================================
+
+# pip
+requirements.txt
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Poetry
+poetry.lock
+
+# Pipenv
+Pipfile.lock
+
+# ============================================
+# Secret/Private Files (Keep these)
+# ============================================
+
+# Secret key files
+secrets/
+*.secret
+*.private
+
+# API key files
+*.api
+api_keys.txt
+keys.txt
+
+# ============================================
+# Frontend (If any)
+# ============================================
+
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# ============================================
+# Performance Monitoring
+# ============================================
+
+# DataDog
+ddtrace/
+
+# New Relic
+newrelic_agent.log
+
+# ============================================
+# Database Dumps
+# ============================================
+
+*.dump
+*.sql.gz
+*.sqlite
+*.psql
+
+# ============================================
+# Miscellaneous
+# ============================================
+
+# MacOS extended attributes
+._*
+
+# Windows image cache
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Temporary files
+*.swp
+*.swo
+*~
+
+# PID files
+*.pid
+
+# ============================================
+# Development Tools
+# ============================================
+
+# Debug toolbar (Django)
+debug.log
+
+# sentry
+.sentry/
+
+# cProfile
+*.prof

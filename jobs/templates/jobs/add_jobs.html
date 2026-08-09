@@ -1,0 +1,62 @@
+{% extends 'jobs/base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}Add Jobs{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-plus-circle"></i> Add Job Source</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Add a job board URL to fetch and analyze job listings with AI.
+                </p>
+                
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-cloud-upload-alt"></i> Fetch Jobs with AI
+                        </button>
+                        <a href="{% url 'jobs:job_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Supported Job Sources</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li><i class="fab fa-linkedin text-primary"></i> LinkedIn</li>
+                            <li><i class="fas fa-building"></i> Indeed</li>
+                            <li><i class="fas fa-glass-cheers"></i> Glassdoor</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-monster"></i> Monster</li>
+                            <li><i class="fas fa-globe"></i> Other Job Boards</li>
+                            <li><i class="fas fa-rss"></i> RSS Feeds</li>
+                        </ul>
+                    </div>
+                </div>
+                <p class="text-muted mt-2">
+                    <i class="fas fa-info-circle"></i> 
+                    Jobs will be automatically processed and evaluated with AI.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
