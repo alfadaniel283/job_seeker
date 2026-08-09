@@ -14,16 +14,13 @@ services:
     # Environment Variables
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: "3.13.5"
         
       - key: DJANGO_SECRET_KEY
         generateValue: true
         
       - key: DEBUG
-        value: false
-        
-      - key: RENDER
-        value: true
+        value: "false"
         
       - key: ALLOWED_HOSTS
         value: ".onrender.com"
@@ -54,25 +51,26 @@ services:
         value: llama-3.3-70b-versatile
       
       - key: AI_TEMPERATURE
-        value: 0.3
+        value: "0.3"
       
       - key: AI_MAX_TOKENS
-        value: 2000
+        value: "2000"
       
       # Job Fetching Settings
       - key: REQUEST_TIMEOUT
-        value: 120
+        value: "120"
       
       - key: MAX_RETRIES
-        value: 10
+        value: "10"
       
       - key: USER_AGENT
         value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-  # ============================================
-  # POSTGRESQL DATABASE
-  # ============================================
-  - type: postgres  # g
-    name: ai-job-seeker-db
+# ============================================
+# POSTGRESQL DATABASE
+# Must be its own top-level list, separate from services
+# ============================================
+databases:
+  - name: ai-job-seeker-db
     plan: free
     ipAllowList: []  # Allow only internal connections
