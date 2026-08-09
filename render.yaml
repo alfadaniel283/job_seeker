@@ -58,7 +58,7 @@ services:
         value: groq
       
       - key: AI_MODEL
-        value: llama-3.3-70b-versatile
+        value: openai/gpt-oss-120b
       
       - key: AI_TEMPERATURE
         value: "0.3"

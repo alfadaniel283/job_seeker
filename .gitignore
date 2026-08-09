@@ -454,4 +454,3 @@ data/
 models/
 *.pkl
 *.pb
-migrations/
