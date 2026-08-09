@@ -8,10 +8,100 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     {% load static %}
     <link rel="stylesheet" href="{% static 'jobs/css/style.css' %}">
+    <style>
+        :root {
+            --nav-bg: #0b0b0c;
+            --nav-bg-edge: #17171a;
+            --pill-bg: #ffffff;
+            --pill-text: #0b0b0c;
+            --pill-hover: #e9e9ea;
+            --admin-accent: #f2b134;
+            --admin-accent-hover: #ffc65c;
+            --logout-hover: #ff5c5c;
+        }
+
+        .navbar-dark-custom {
+            background: linear-gradient(180deg, var(--nav-bg) 0%, var(--nav-bg-edge) 100%);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+        }
+
+        .navbar-dark-custom .navbar-brand {
+            color: #ffffff;
+            font-weight: 70;
+            letter-spacing: 0.01em;
+        }
+
+        .nav-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: var(--pill-bg);
+            color: var(--pill-text) !important;
+            border-radius: 999px;
+            padding: 0.4rem 1rem;
+            font-weight: 600;
+            font-size: 0.8rem;
+            margin: 0 0.25rem;
+            transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+            text-decoration: none;
+        }
+
+        .nav-pill:hover {
+            background: var(--admin-accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+            color: var(--pill-text) !important;
+        }
+
+        .nav-pill i {
+            font-size: 0.7rem;
+        }
+
+        .user-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.7rem;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            border-radius: 999px;
+            padding: 0.35rem 0.9rem 0.35rem 0.4rem;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+
+        .user-pill .fa-circle-user {
+            font-size: 1.4rem;
+            color: var(--admin-accent);
+        }
+
+        .admin-pill {
+            background: var(--admin-accent);
+            color: #1a1200 !important;
+        }
+
+        .admin-pill:hover {
+            background: var(--admin-accent-hover);
+            color: #1a1200 !important;
+        }
+
+        .logout-pill:hover {
+            background: var(--logout-hover);
+            color: #ffffff !important;
+        }
+
+        @media (max-width: 991.98px) {
+            .nav-pill,
+            .user-pill {
+                margin: 0.25rem 0;
+                width: fit-content;
+            }
+        }
+    </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-dark-custom">
         <div class="container">
             <a class="navbar-brand" href="{% url 'jobs:index' %}">
                 <i class="fas fa-brain"></i> AI Job Aggregator
@@ -22,43 +112,50 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'jobs:job_list' %}">
+                        <a class="nav-pill" href="{% url 'jobs:job_list' %}">
                             <i class="fas fa-list"></i> Jobs
                         </a>
                     </li>
                     {% if user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'jobs:add_jobs' %}">
+                        <a class="nav-pill" href="{% url 'jobs:add_jobs' %}">
                             <i class="fas fa-plus"></i> Add Jobs
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'jobs:preferences' %}">
+                        <a class="nav-pill" href="{% url 'jobs:preferences' %}">
                             <i class="fas fa-cog"></i> Preferences
                         </a>
                     </li>
                     <li class="nav-item">
-                    <a class="nav-link" href="{% url 'jobs:bulk_add_jobs' %}">
-                        <i class="fas fa-layer-group"></i> Bulk Add
-                    </a>
-                </li>
+                        <a class="nav-pill" href="{% url 'jobs:bulk_add_jobs' %}">
+                            <i class="fas fa-layer-group"></i> Bulk Add
+                        </a>
+                    </li>
+                    {% if user.is_staff %}
+                    <li class="nav-item">
+                        <a class="nav-pill admin-pill" href="{% url 'admin:index' %}">
+                            <i class="fas fa-shield-halved"></i> Admin Dashboard
+                        </a>
+                    </li>
+                    {% endif %}
                     {% endif %}
                 </ul>
-                <ul class="navbar-nav">
+                <ul class="navbar-nav align-items-center">
                     {% if user.is_authenticated %}
-                    <li class="nav-item">
-                        <span class="navbar-text me-2">
-                            <i class="fas fa-user"></i> {{ user.username }}
+                    <li class="nav-item me-2">
+                        <span class="user-pill">
+                            <i class="fa-solid fa-circle-user"></i> {{ user.username }}
                         </span>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'admin:logout' %}">
+                        <a class="nav-pill logout-pill" href="{% url 'admin:logout' %}">
                             <i class="fas fa-sign-out-alt"></i> Logout
                         </a>
                     </li>
                     {% else %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'admin:login' %}">
+                        <a class="nav-pill" href="{% url 'admin:login' %}">
                             <i class="fas fa-sign-in-alt"></i> Login
                         </a>
                     </li>
