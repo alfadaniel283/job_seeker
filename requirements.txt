@@ -22,6 +22,7 @@ coverage==7.15.4
 crispy-bootstrap5==2026.3
 cryptography==50.0.0
 distro==1.9.0
+dj-database-url==2.3.0
 django==6.1
 django-celery-results==2.6.0
 django-cors-headers==4.9.0
